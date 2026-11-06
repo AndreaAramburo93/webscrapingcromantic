@@ -1,0 +1,72 @@
+# Despliegue continuo: cuando un cambio llega a main (merge de un pull request), se vuelven a correr las pruebas, se ejecuta el scraper y se
+# publica el reporte en GitHub Pages. También corre cada lunes para
+# refrescar los precios, y se puede lanzar a mano desde la pestaña Actions.
+name: CD - Publicar reporte
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 12 * * 1"   # lunes 7:00 a. m. hora Colombia
+  workflow_dispatch:
+
+permissions:
+  contents: write   # para guardar el CSV actualizado
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Pruebas antes de desplegar
+        run: pytest -q
+
+      - name: Ejecutar el scraper y generar el reporte
+        run: python -m cromantic_scraper --paginas 12
+
+      - name: Guardar el CSV actualizado en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/productos_cromantic.csv
+          git diff --cached --quiet || git commit -m "data: actualiza precios [skip ci]"
+          git push || echo "Sin cambios para subir"
+
+      - name: Preparar artefacto de Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  desplegar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Prueba de humo sobre el sitio publicado
+        run: |
+          sleep 15
+          curl --fail --silent "${{ steps.deployment.outputs.page_url }}" \
+            | grep -q "Precios de productos capilares"

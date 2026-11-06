@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cromantic-scraper"
+version = "1.0.0"
+description = "Scraper de precios capilares de Cromantic con flujo DevOps"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31", "beautifulsoup4>=4.12", "pandas>=2.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
