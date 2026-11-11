@@ -1,7 +1,14 @@
-# Despliegue continuo: cuando un cambio llega a main (merge de un pull request), se vuelven a correr las pruebas, se ejecuta el scraper y se
-# publica el reporte en GitHub Pages. También corre cada lunes para
-# refrescar los precios, y se puede lanzar a mano desde la pestaña Actions.
-name: CD - Publicar reporte
+# Entrega y despliegue continuo.
+# 1. pruebas   -> repite las pruebas: nada se publica si fallan.
+# 2. datos     -> scraping + limpieza, guarda CSV y reporte de calidad en el repo.
+# 3. render  ┐ -> en paralelo: despliega la app web en Render (producción)
+#    pages   ┘    y publica el reporte estático en GitHub Pages.
+#
+# Configuración necesaria en GitHub (Settings > Secrets and variables > Actions):
+#   Secreto   RENDER_DEPLOY_HOOK_URL   URL privada del deploy hook de Render
+#   Variable  APP_URL                  https://<tu-servicio>.onrender.com
+#   Variable  SCRAPER_PAGINAS          páginas a recorrer (opcional, por defecto 12)
+name: CD - Desplegar
 
 on:
   push:
@@ -10,63 +17,124 @@ on:
     - cron: "0 12 * * 1"   # lunes 7:00 a. m. hora Colombia
   workflow_dispatch:
 
-permissions:
-  contents: write   # para guardar el CSV actualizado
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
+  group: despliegue
   cancel-in-progress: false
 
+env:
+  SCRAPER_PAGINAS: ${{ vars.SCRAPER_PAGINAS || '12' }}
+
 jobs:
-  construir:
+  pruebas:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-
-      - name: Instalar dependencias
-        run: |
+      - run: |
           pip install -r requirements-dev.txt
           pip install -e .
+      - run: pytest -q
 
-      - name: Pruebas antes de desplegar
-        run: pytest -q
-
-      - name: Ejecutar el scraper y generar el reporte
-        run: python -m cromantic_scraper --paginas 12
-
-      - name: Guardar el CSV actualizado en el repositorio
+  datos:
+    needs: pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Scraping, validación y limpieza
+        run: python -m cromantic_scraper
+      - name: Resumen de calidad en la ejecución
+        run: |
+          echo "### Calidad de los datos" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat data/calidad_datos.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Guardar datos en el repositorio
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/productos_cromantic.csv
+          git add data/productos_cromantic.csv data/calidad_datos.json
           git diff --cached --quiet || git commit -m "data: actualiza precios [skip ci]"
           git push || echo "Sin cambios para subir"
-
-      - name: Preparar artefacto de Pages
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Guardar el reporte estático
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
-  desplegar:
-    needs: construir
+  render:
+    needs: datos
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: produccion
+      url: ${{ vars.APP_URL }}
+    steps:
+      - name: Disparar el despliegue en Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Falta el secreto RENDER_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Despliegue solicitado a Render"
+      - name: Esperar a que Render publique la versión nueva
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          SHA: ${{ needs.datos.outputs.sha }}
+        run: |
+          esperado="${SHA:0:7}"
+          for i in $(seq 1 60); do
+            r=$(curl -s --max-time 90 "$APP_URL/health" || true)
+            echo "Intento $i: $r"
+            if echo "$r" | grep -q '"status":"ok"'; then
+              if echo "$r" | grep -q "\"commit\":\"$esperado\"" || \
+                 echo "$r" | grep -q '"commit":"desconocido"'; then
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "::error::Render no publicó el commit $esperado a tiempo"
+          exit 1
+      - name: Prueba de humo en producción
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          curl -fsS "$APP_URL/" | grep -q "Precios capilares en Cromantic"
+          curl -fsS "$APP_URL/api/resumen" | grep -q '"productos"'
+          echo "Producción responde correctamente: $APP_URL"
+
+  pages:
+    needs: datos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publicar en GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Prueba de humo sobre el sitio publicado
-        run: |
-          sleep 15
-          curl --fail --silent "${{ steps.deployment.outputs.page_url }}" \
-            | grep -q "Precios de productos capilares"
