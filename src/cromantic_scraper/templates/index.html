@@ -48,10 +48,22 @@
        letter-spacing: .03em; }
   td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .vacio { color: var(--suave); padding: 16px 0; }
+  .estado { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .75rem;
+            font-weight: 600; white-space: nowrap; }
+  .estado.activa { background: #e3f4e8; color: #1d6b38; }
+  .estado.terminada { background: #efedf0; color: var(--suave); }
+  .pct { font-weight: 700; color: var(--acento); }
+  .tachado { color: var(--suave); text-decoration: line-through; }
+  .nota { color: var(--suave); font-size: .85rem; margin: 0 0 12px; }
+  .rank { color: var(--suave); width: 28px; }
   footer { color: var(--suave); font-size: .82rem; text-align: center; padding-bottom: 32px; }
   footer a { color: var(--acento); }
   @media (max-width: 560px) {
     .barra { grid-template-columns: 110px 1fr 84px; }
+    .opcional { display: none; }
+    section { padding: 16px 10px 8px; }
+    th, td { padding: 8px 4px; }
+    table { font-size: .85rem; }
   }
 </style>
 </head>
@@ -71,6 +83,38 @@
     <div class="kpi"><span>Mediana</span><b>{{ resumen.mediana }}</b></div>
     <div class="kpi"><span>Rango</span><b>{{ resumen.minimo }} – {{ resumen.maximo }}</b></div>
   </div>
+
+  <section>
+    <h2>Top 10 productos con más descuento</h2>
+    {% if descuentos %}
+    <p class="nota">Comparación entre las extracciones del {{ cambios.fecha_antes }} y el {{ cambios.fecha_ahora }}:
+      de {{ cambios.comparados }} productos presentes en ambas fechas, {{ cambios.bajaron }} bajaron de precio
+      y {{ cambios.subieron }} subieron. El precio normal es el más alto de las dos fechas.</p>
+    <div class="tabla"><table>
+      <tr><th class="opcional"></th><th class="opcional">Marca</th><th>Producto</th><th class="opcional" style="text-align:right">Normal</th>
+          <th style="text-align:right">Promoción</th><th style="text-align:right">Desc.</th>
+          <th class="opcional" style="text-align:right">Ahorro</th><th>Estado</th></tr>
+      {% for d in descuentos %}
+      <tr><td class="rank opcional">{{ loop.index }}</td><td class="opcional">{{ d.marca }}</td><td>{{ d.nombre }}</td>
+          <td class="num tachado opcional">{{ d.precio_normal_texto }}</td><td class="num">{{ d.precio_promocion_texto }}</td>
+          <td class="num pct">{{ '%.0f' % d.descuento_pct }} %</td><td class="num opcional">{{ d.ahorro_texto }}</td>
+          <td><span class="estado {{ d.estado }}">{{ 'Activa' if d.estado == 'activa' else 'Terminó' }}</span></td></tr>
+      {% endfor %}
+    </table></div>
+    {% else %}
+    <p class="vacio">Se necesitan al menos dos extracciones en fechas distintas para detectar descuentos.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Top 5 productos más caros</h2>
+    <div class="tabla"><table>
+      <tr><th></th><th>Marca</th><th>Producto</th><th style="text-align:right">Precio</th></tr>
+      {% for c in caros %}
+      <tr><td class="rank">{{ loop.index }}</td><td>{{ c.marca }}</td><td>{{ c.nombre }}</td><td class="num">{{ c.precio_texto }}</td></tr>
+      {% endfor %}
+    </table></div>
+  </section>
 
   <section>
     <h2>Precio promedio por marca</h2>
@@ -131,7 +175,8 @@
 
 <footer>
   Versión {{ version }} · <a href="/api/productos">API de productos</a> ·
-  <a href="/api/resumen">API de resumen</a> · <a href="/health">Estado</a>
+  <a href="/api/resumen">API de resumen</a> ·
+  <a href="/api/descuentos">API de descuentos</a> · <a href="/health">Estado</a>
 </footer>
 </body>
 </html>
