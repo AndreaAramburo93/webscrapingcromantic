@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_secciones.html" as s with context %}
+{% block contenido %}
+{{ s.kpis(resumen) }}
+{% if destacado %}{{ s.perfil(destacado, true) }}{% endif %}
+{{ s.descuentos_tabla(descuentos, cambios, true) }}
+{{ s.caros_tabla(caros, true) }}
+{{ s.marcas_barras(marcas, formatear_cop) }}
+  <section>
+    <h2>Catálogo ({{ productos | length }} de {{ total }})</h2>
+    <form method="get">
+      <input type="search" name="q" value="{{ texto }}" placeholder="Buscar producto">
+      <select name="marca" aria-label="Marca">
+        <option value="">Todas las marcas</option>
+        {% for nombre in lista_marcas %}
+        <option value="{{ nombre }}" {% if nombre == marca %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+      </select>
+      <select name="orden" aria-label="Orden">
+        <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Mayor precio</option>
+        <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Menor precio</option>
+        <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Nombre A–Z</option>
+      </select>
+      <button type="submit">Filtrar</button>
+      {% if marca or texto %}<a class="limpiar" href="/">Quitar filtros</a>{% endif %}
+    </form>
+    <div class="tabla">
+    {% if productos %}
+      <table>
+        <tr><th>SKU</th><th>Marca</th><th>Producto</th><th style="text-align:right">Precio</th></tr>
+        {% for p in productos %}
+        <tr><td>{{ p.sku }}</td><td>{{ p.marca }}</td><td>{{ s.nombre_producto(p.sku, p.nombre, true) }}</td><td class="num">{{ p.precio_texto }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="vacio">Ningún producto coincide con el filtro.</p>
+    {% endif %}
+    </div>
+  </section>
+
+{{ s.calidad_tabla(calidad) }}
+{% endblock %}

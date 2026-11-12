@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "_secciones.html" as s with context %}
+{% block contenido %}
+{{ s.kpis(resumen) }}
+{% if destacado %}{{ s.perfil(destacado, false) }}{% endif %}
+{{ s.descuentos_tabla(descuentos, cambios, false) }}
+{{ s.caros_tabla(caros, false) }}
+{{ s.marcas_barras(marcas, formatear_cop) }}
+  <section>
+    <h2>Catálogo ({{ productos | length }} productos)</h2>
+    <div class="tabla"><table>
+      <tr><th>SKU</th><th>Marca</th><th>Producto</th><th style="text-align:right">Precio</th></tr>
+      {% for p in productos %}
+      <tr><td>{{ p.sku }}</td><td>{{ p.marca }}</td><td>{{ p.nombre }}</td><td class="num">{{ p.precio_texto }}</td></tr>
+      {% endfor %}
+    </table></div>
+  </section>
+{{ s.calidad_tabla(calidad) }}
+{% endblock %}
+{% block pie %}Reporte generado automáticamente por GitHub Actions · Versión {{ version }}{% endblock %}

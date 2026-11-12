@@ -1,0 +1,111 @@
+{# Secciones compartidas por la app (Render) y el reporte estático (GitHub Pages) #}
+
+{% macro nombre_producto(sku, nombre, enlaces) -%}
+  {%- if enlaces %}<a href="/producto/{{ sku }}">{{ nombre }}</a>{% else %}{{ nombre }}{% endif -%}
+{%- endmacro %}
+
+{% macro kpis(resumen) %}
+  <div class="kpis">
+    <div class="kpi"><span>Productos</span><b>{{ resumen.productos }}</b></div>
+    <div class="kpi"><span>Precio promedio</span><b>{{ resumen.promedio }}</b></div>
+    <div class="kpi"><span>Mediana</span><b>{{ resumen.mediana }}</b></div>
+    <div class="kpi"><span>Rango</span><b>{{ resumen.minimo }} – {{ resumen.maximo }}</b></div>
+  </div>
+{% endmacro %}
+
+{% macro perfil(p, enlaces, titulo="Producto destacado") %}
+  <section>
+    <h2>{{ titulo }}</h2>
+    <div class="destacado-cabeza">
+      <div><h3>{{ p.nombre }}</h3><span class="marca-txt">{{ p.marca }} · SKU {{ p.sku }}</span></div>
+      {% if enlaces and titulo == "Producto destacado" %}<a href="/producto/{{ p.sku }}">Ver detalle</a>{% endif %}
+    </div>
+    <div class="mini">
+      <div><span>Precio actual</span><b>{{ p.precio_texto }}</b></div>
+      <div><span>Más caro que</span><b>{{ p.percentil }} % del catálogo</b></div>
+      <div><span>Puesto en su marca</span><b>{{ p.puesto_marca }} de {{ p.marca_productos }}</b></div>
+      <div><span>Promedio tipo «{{ p.tipo }}»</span><b>{{ p.tipo_promedio_texto }}</b></div>
+    </div>
+    <ul class="hallazgos">
+      {% for f in p.frases %}<li>{{ f }}</li>{% endfor %}
+    </ul>
+    {% if p.historial %}
+    <div class="historia">
+      {% set tope = p.historial | map(attribute="precio") | max %}
+      {% for h in p.historial %}
+      <div class="barra">
+        <div>{{ h.fecha }}</div>
+        <div class="pista"><div class="relleno" style="width: {{ (h.precio / tope * 100) | round(1) }}%"></div></div>
+        <div class="valor">{{ h.precio_texto }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+{% endmacro %}
+
+{% macro descuentos_tabla(descuentos, cambios, enlaces) %}
+  <section>
+    <h2>Top 10 productos con más descuento</h2>
+    {% if descuentos %}
+    <p class="nota">Comparación entre las extracciones del {{ cambios.fecha_antes }} y el {{ cambios.fecha_ahora }}:
+      de {{ cambios.comparados }} productos presentes en ambas fechas, {{ cambios.bajaron }} bajaron de precio
+      y {{ cambios.subieron }} subieron. El precio normal es el más alto de las dos fechas.</p>
+    <div class="tabla"><table>
+      <tr><th class="opcional"></th><th class="opcional">Marca</th><th>Producto</th><th class="opcional" style="text-align:right">Normal</th>
+          <th style="text-align:right">Promoción</th><th style="text-align:right">Desc.</th>
+          <th class="opcional" style="text-align:right">Ahorro</th><th>Estado</th></tr>
+      {% for d in descuentos %}
+      <tr><td class="rank opcional">{{ loop.index }}</td><td class="opcional">{{ d.marca }}</td>
+          <td>{{ nombre_producto(d.sku, d.nombre, enlaces) }}</td>
+          <td class="num tachado opcional">{{ d.precio_normal_texto }}</td><td class="num">{{ d.precio_promocion_texto }}</td>
+          <td class="num pct">{{ '%.0f' % d.descuento_pct }} %</td><td class="num opcional">{{ d.ahorro_texto }}</td>
+          <td><span class="estado {{ d.estado }}">{{ 'Activa' if d.estado == 'activa' else 'Terminó' }}</span></td></tr>
+      {% endfor %}
+    </table></div>
+    {% else %}
+    <p class="vacio">Se necesitan al menos dos extracciones en fechas distintas para detectar descuentos.</p>
+    {% endif %}
+  </section>
+{% endmacro %}
+
+{% macro caros_tabla(caros, enlaces) %}
+  <section>
+    <h2>Top 5 productos más caros</h2>
+    <div class="tabla"><table>
+      <tr><th></th><th>Marca</th><th>Producto</th><th style="text-align:right">Precio</th></tr>
+      {% for c in caros %}
+      <tr><td class="rank">{{ loop.index }}</td><td>{{ c.marca }}</td>
+          <td>{{ nombre_producto(c.sku, c.nombre, enlaces) }}</td><td class="num">{{ c.precio_texto }}</td></tr>
+      {% endfor %}
+    </table></div>
+  </section>
+{% endmacro %}
+
+{% macro marcas_barras(marcas, formatear_cop) %}
+  <section>
+    <h2>Precio promedio por marca</h2>
+    {% set tope = marcas[0].precio_promedio if marcas else 1 %}
+    {% for m in marcas %}
+    <div class="barra">
+      <div>{{ m.marca }} <small>({{ m.productos }})</small></div>
+      <div class="pista"><div class="relleno" style="width: {{ (m.precio_promedio / tope * 100) | round(1) }}%"></div></div>
+      <div class="valor">{{ formatear_cop(m.precio_promedio) }}</div>
+    </div>
+    {% endfor %}
+  </section>
+{% endmacro %}
+
+{% macro calidad_tabla(calidad) %}
+  {% if calidad %}
+  <section>
+    <h2>Calidad de los datos</h2>
+    <div class="tabla"><table>
+      <tr><th>Filas recibidas</th><th>Sin SKU</th><th>Sin nombre</th><th>Precio inválido</th><th>Duplicados</th><th>Filas válidas</th></tr>
+      <tr><td>{{ calidad.filas_entrada }}</td><td>{{ calidad.sin_sku }}</td><td>{{ calidad.sin_nombre }}</td>
+          <td>{{ calidad.precio_invalido }}</td><td>{{ calidad.duplicados }}</td><td><b>{{ calidad.filas_salida }}</b></td></tr>
+    </table></div>
+    <p class="vacio">Origen de los datos: {{ calidad.origen }}.</p>
+  </section>
+  {% endif %}
+{% endmacro %}
