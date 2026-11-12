@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Precios capilares Cromantic{% endblock %}</title>
+<style>
+  :root {
+    --fondo: #faf8f6; --tarjeta: #ffffff; --tinta: #1f1b24; --suave: #6b6472;
+    --linea: #e8e3df; --acento: #7a2e5a; --acento-claro: #f3e6ee;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--acento); color: #fff; padding: 28px 16px 24px; }
+  .contenedor { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  header .contenedor { padding: 0; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; letter-spacing: -.01em; }
+  header p { margin: 0; opacity: .85; font-size: .9rem; }
+  .etiqueta { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px;
+              background: rgba(255,255,255,.18); font-size: .75rem; vertical-align: middle; }
+  main.contenedor { padding: 24px 16px 40px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 12px; margin-bottom: 24px; }
+  .kpi { background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 10px;
+         padding: 14px 16px; }
+  .kpi span { color: var(--suave); font-size: .82rem; }
+  .kpi b { display: block; font-size: 1.35rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  section { background: var(--tarjeta); border: 1px solid var(--linea); border-radius: 10px;
+            padding: 18px 18px 8px; margin-bottom: 20px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .barra { display: grid; grid-template-columns: 170px 1fr 96px; align-items: center;
+           gap: 10px; margin-bottom: 10px; font-size: .9rem; }
+  .barra .pista { background: var(--acento-claro); border-radius: 4px; height: 12px; }
+  .barra .relleno { background: var(--acento); border-radius: 4px; height: 12px; }
+  .barra .valor { text-align: right; font-variant-numeric: tabular-nums; }
+  .barra small { color: var(--suave); }
+  form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  input, select, button { font: inherit; padding: 8px 10px; border: 1px solid var(--linea);
+                          border-radius: 8px; background: #fff; color: var(--tinta); }
+  input { flex: 1 1 200px; }
+  button { background: var(--acento); color: #fff; border-color: var(--acento); cursor: pointer; }
+  a.limpiar { align-self: center; color: var(--acento); font-size: .9rem; }
+  .tabla { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--linea); }
+  th { color: var(--suave); font-weight: 600; font-size: .8rem; text-transform: uppercase;
+       letter-spacing: .03em; }
+  td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .vacio { color: var(--suave); padding: 16px 0; }
+  .estado { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .75rem;
+            font-weight: 600; white-space: nowrap; }
+  .estado.activa { background: #e3f4e8; color: #1d6b38; }
+  .estado.terminada { background: #efedf0; color: var(--suave); }
+  .pct { font-weight: 700; color: var(--acento); }
+  .tachado { color: var(--suave); text-decoration: line-through; }
+  .nota { color: var(--suave); font-size: .85rem; margin: 0 0 12px; }
+  .rank { color: var(--suave); width: 28px; }
+  .destacado-cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
+                      align-items: baseline; margin-bottom: 12px; }
+  .destacado-cabeza h3 { margin: 0; font-size: 1.15rem; }
+  .destacado-cabeza a, .volver { color: var(--acento); font-size: .9rem; }
+  .marca-txt { color: var(--suave); font-size: .9rem; }
+  .mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
+          margin-bottom: 14px; }
+  .mini div { background: var(--fondo); border-radius: 8px; padding: 10px 12px; }
+  .mini span { color: var(--suave); font-size: .78rem; display: block; }
+  .mini b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+  .hallazgos { margin: 0 0 14px; padding-left: 20px; }
+  .hallazgos li { margin-bottom: 6px; }
+  .historia .barra { grid-template-columns: 110px 1fr 96px; }
+  td a { color: var(--tinta); text-decoration-color: var(--linea); text-underline-offset: 3px; }
+  td a:hover { color: var(--acento); }
+  footer { color: var(--suave); font-size: .82rem; text-align: center; padding-bottom: 32px; }
+  footer a { color: var(--acento); }
+  @media (max-width: 560px) {
+    .barra { grid-template-columns: 110px 1fr 84px; }
+    .opcional { display: none; }
+    section { padding: 16px 10px 8px; }
+    th, td { padding: 8px 4px; }
+    table { font-size: .85rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="contenedor">
+    <h1>Precios capilares en Cromantic <span class="etiqueta">{{ entorno }}</span></h1>
+    <p>Monitoreo automatizado con web scraping, GitHub Actions y Render
+      {% if calidad and calidad.fecha_utc %}· Datos del {{ calidad.fecha_utc }} UTC{% endif %}</p>
+  </div>
+</header>
+
+<main class="contenedor">
+{% block contenido %}{% endblock %}
+</main>
+
+<footer>
+  {% block pie %}
+  Versión {{ version }} · <a href="/api/productos">API de productos</a> ·
+  <a href="/api/resumen">API de resumen</a> ·
+  <a href="/api/descuentos">API de descuentos</a> · <a href="/health">Estado</a>
+  {% endblock %}
+</footer>
+</body>
+</html>

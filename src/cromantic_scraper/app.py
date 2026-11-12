@@ -3,7 +3,10 @@
 Rutas:
     /                 página con indicadores, filtros y catálogo
     /api/productos    productos en JSON (filtros: marca, q, orden)
+    /producto/<sku>   análisis descriptivo de un producto
     /api/resumen      estadísticas de precio y tabla por marca en JSON
+    /api/descuentos   top 10 de descuentos en JSON
+    /api/producto/<sku>  análisis descriptivo de un producto en JSON
     /health           estado del servicio, usado por Render y la prueba de humo
 
 Variables de entorno:
@@ -15,12 +18,13 @@ import json
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request
 
 from . import __version__, historial
 from .__main__ import cargar_csv
-from .analysis import mas_caros, por_marca, resumen_precios
-from .scraper import formatear_cop
+from .analysis import por_marca, resumen_precios
+from .perfil import perfil_producto
+from .report import contexto
 
 ORDENES = {
     "precio_desc": ("precio_cop", False),
@@ -78,25 +82,36 @@ def crear_app(ruta_datos=None):
         if df is None or df.empty:
             return render_template("sin_datos.html"), 503
         filtrado, marca, texto, orden = filtrar(df)
-        r = resumen_precios(df)
-        hist = cargar_historial()
+        datos = contexto(df, cargar_historial(), calidad())
         return render_template(
             "index.html",
             productos=filtrado.to_dict("records"),
             total=len(df),
-            resumen={k: formatear_cop(v) if k != "productos" else v
-                     for k, v in r.items()},
-            marcas=por_marca(df).to_dict("records"),
             lista_marcas=sorted(df["marca"].dropna().unique()),
             marca=marca, texto=texto, orden=orden,
-            calidad=calidad(),
-            caros=mas_caros(df, 5).to_dict("records"),
-            descuentos=historial.top_descuentos(hist, 10),
-            cambios=historial.resumen_cambios(hist),
             entorno=os.environ.get("ENTORNO", "local"),
-            version=__version__,
-            formatear_cop=formatear_cop,
+            **datos,
         )
+
+    @app.get("/producto/<sku>")
+    def producto(sku):
+        df = cargar()
+        if df is None or df.empty:
+            return render_template("sin_datos.html"), 503
+        p = perfil_producto(df, cargar_historial(), sku)
+        if p is None:
+            abort(404)
+        return render_template("producto.html", p=p, calidad=calidad(),
+                               entorno=os.environ.get("ENTORNO", "local"),
+                               version=__version__)
+
+    @app.get("/api/producto/<sku>")
+    def api_producto(sku):
+        df = cargar()
+        p = None if df is None else perfil_producto(df, cargar_historial(), sku)
+        if p is None:
+            return jsonify(error="producto no encontrado"), 404
+        return jsonify(p)
 
     @app.get("/api/productos")
     def api_productos():
