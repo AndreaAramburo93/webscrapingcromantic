@@ -86,12 +86,15 @@ def main(argv=None):
 
     if origen == "scraping":  # el respaldo no es una medición nueva
         hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        historial.agregar(df, args.historial, hoy)
+        hist = historial.agregar(df, args.historial, hoy)
         log.info("Historial actualizado en %s (%s)", args.historial, hoy)
+    else:
+        hist = historial.cargar(args.historial)
 
+    # Reporte estático para GitHub Pages con las mismas métricas de la app
     ruta_html = Path(args.salida)
     ruta_html.parent.mkdir(parents=True, exist_ok=True)
-    ruta_html.write_text(construir_html(df), encoding="utf-8")
+    ruta_html.write_text(construir_html(df, hist, reporte), encoding="utf-8")
     log.info("Reporte generado en %s", ruta_html)
     return 0
 

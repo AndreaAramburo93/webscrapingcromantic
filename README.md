@@ -1,27 +1,33 @@
 # Scraper de precios capilares de Cromantic con flujo DevOps
 
-Proyecto de la Evidencia de aprendizaje 2 (Programación para Análisis de Datos, IU Digital de Antioquia).
+Proyecto de las evidencias de aprendizaje 1, 2 y 3 (Programación para Análisis de Datos, IU Digital de Antioquia).
 Extrae SKU, marca, nombre y precio de la categoría capilar de [Cromantic](https://www.cromantic.com/),
 los guarda en CSV y publica un reporte en GitHub Pages. Cada cambio pasa por pruebas automáticas antes de llegar a `main`.
 
-![CI](https://github.com/AndreaAramburo93/cromantic-scraper-devops/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/AndreaAramburo93/webscrapingcromantic/actions/workflows/ci.yml/badge.svg)
 
 ## Estructura
 
 ```
-cromantic-scraper-devops/
+webscrapingcromantic/
 ├── src/cromantic_scraper/
 │   ├── scraper.py      # petición GET, lectura de JSON-LD y paginación
+│   ├── limpieza.py     # validación de integridad y limpieza de datos
 │   ├── analysis.py     # estadísticas con pandas
-│   ├── report.py       # página HTML del reporte
-│   └── __main__.py     # punto de entrada: scraping → CSV → HTML
-├── tests/              # pruebas unitarias (pytest) con HTML de ejemplo, sin red
-├── data/               # productos_cromantic.csv (respaldo y versión de los datos)
-├── notebooks/          # notebook original de la Evidencia 1 (Colab)
+│   ├── historial.py    # historial de precios y detección de descuentos
+│   ├── perfil.py       # análisis descriptivo de un producto
+│   ├── report.py       # página HTML estática para GitHub Pages
+│   ├── app.py          # aplicación web Flask desplegada en Render
+│   ├── templates/      # páginas HTML de la aplicación
+│   └── __main__.py     # punto de entrada: scraping → limpieza → CSV → historial → HTML
+├── tests/              # 51 pruebas unitarias (pytest) con datos de ejemplo, sin red
+├── data/               # productos, historial de precios y reporte de calidad
+├── Notebooks/          # notebooks de Colab de las evidencias 1 y 2
 ├── .github/workflows/
-│   ├── ci.yml          # integración continua: flake8 + pytest en cada push y PR
-│   └── deploy.yml      # despliegue continuo: scraper + GitHub Pages al llegar a main
-├── Dockerfile
+│   ├── ci.yml          # integración continua: flake8, pytest y Docker en paralelo
+│   └── deploy.yml      # despliegue continuo: datos, Render y GitHub Pages
+├── Dockerfile          # imagen de la aplicación (gunicorn)
+├── render.yaml         # infraestructura como código para Render
 ├── pyproject.toml
 └── requirements*.txt
 ```
@@ -63,10 +69,10 @@ así el sitio nunca queda vacío.
 
 ## Configuración en GitHub (una sola vez)
 
-1. Crear el repositorio `cromantic-scraper-devops` (público) y subir el código.
+1. Crear el repositorio `webscrapingcromantic` (público) y subir el código.
 2. **Settings → Pages → Source: GitHub Actions.**
 3. **Settings → Branches → Add rule** para `main`: *Require a pull request before merging* y
-   *Require status checks to pass* (seleccionar los trabajos `pruebas`).
+   *Require status checks to pass* (seleccionar `Estilo PEP 8 (flake8)`, `Pruebas (Python 3.10/3.11/3.12)` e `Imagen Docker`).
 4. **Settings → Actions → General → Workflow permissions: Read and write.**
 5. Copiar en `data/` el `productos_cromantic.csv` descargado de Colab como primer respaldo.
 
@@ -78,7 +84,7 @@ git init
 git add .
 git commit -m "chore: estructura inicial del proyecto"
 git branch -M main
-git remote add origin https://github.com/AndreaAramburo93/cromantic-scraper-devops.git
+git remote add origin https://github.com/AndreaAramburo93/webscrapingcromantic.git
 git push -u origin main
 
 # 2. Rama para el scraper
@@ -119,6 +125,11 @@ git push origin v1.0.0
 | --- | --- |
 | `tests/test_scraper.py` | Lectura de ItemList, marca como texto o diccionario, precio en `Offer` y `AggregateOffer`, entidades HTML, JSON roto, corte de paginación cuando una página se repite |
 | `tests/test_analysis.py` | Eliminación de SKU repetidos, estadísticas de precio, orden por marca, escape de HTML en el reporte, lectura del CSV del notebook |
+| `tests/test_limpieza.py` | Filas sin SKU o sin nombre, precios inválidos, duplicados, marca vacía y conteo del reporte de calidad |
+| `tests/test_historial.py` | Historial por fecha sin duplicados, comparación de las dos últimas fechas, promociones activas y terminadas |
+| `tests/test_app.py` | Rutas de la app, filtros, API JSON, `/health`, escape de HTML, tablas de descuentos y página de producto |
+| `tests/test_perfil.py` | Percentil, puesto en la marca, tipo de producto y frases del análisis descriptivo |
+| `tests/test_main.py` | Pipeline completo: scraping simulado, limpieza, historial y reporte con métricas |
 
 Las pruebas usan `tests/fixtures/capilar_pagina1.html`, una página de ejemplo con la misma
 estructura JSON-LD del sitio. No dependen de internet, por eso no fallan si la tienda cambia o se cae.
@@ -134,6 +145,8 @@ La versión 2.0.0 agrega una aplicación web con Flask, desplegada en Render com
 | `/api/productos?marca=&q=&orden=` | Productos en JSON (`orden`: `precio_desc`, `precio_asc`, `nombre`) |
 | `/api/resumen` | Estadísticas, tabla por marca y reporte de calidad en JSON |
 | `/api/descuentos` | Top 10 de descuentos entre las dos últimas extracciones en JSON |
+| `/producto/<sku>` | Análisis descriptivo de un producto: catálogo, marca, tipo e historial de precio |
+| `/api/producto/<sku>` | El mismo análisis en JSON |
 | `/health` | Estado del servicio, versión y commit desplegado |
 
 Ejecutarla en local:
@@ -153,6 +166,14 @@ Cada extracción real (no el respaldo) agrega sus precios con la fecha del día 
 `data/historial_precios.csv`. `historial.py` compara las dos últimas fechas: el precio normal es el
 más alto y el de promoción el más bajo. Si el precio bajó, la promoción está **activa**; si subió,
 **terminó**. La app muestra el top 10 de descuentos y el top 5 de productos más caros.
+
+### Producto destacado y reporte automático
+
+`perfil.py` describe un producto frente a todo el catálogo (percentil y relación con la mediana),
+frente a su marca (puesto por precio) y frente a los productos del mismo tipo (primera palabra del
+nombre), y resume cómo cambió su precio. La app y el reporte muestran como destacado el producto con
+mayor descuento. `report.py` arma las mismas métricas para la app y para `site/index.html`, que el
+pipeline publica en GitHub Pages en cada ejecución.
 
 ### Pipeline
 

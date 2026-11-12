@@ -111,3 +111,26 @@ def test_sin_historial_muestra_aviso(tmp_path):
     ruta.write_text(CSV, encoding="utf-8-sig")
     html = crear_app(ruta).test_client().get("/").get_data(as_text=True)
     assert "al menos dos extracciones" in html
+
+
+def test_pagina_muestra_producto_destacado(cliente):
+    html = cliente.get("/").get_data(as_text=True)
+    assert "Producto destacado" in html
+    assert 'href="/producto/10996"' in html
+
+
+def test_pagina_de_producto(cliente):
+    r = cliente.get("/producto/10996")
+    assert r.status_code == 200
+    assert "Análisis del producto" in r.get_data(as_text=True)
+
+
+def test_producto_inexistente_404(cliente):
+    assert cliente.get("/producto/no-existe").status_code == 404
+    assert cliente.get("/api/producto/no-existe").status_code == 404
+
+
+def test_api_producto(cliente):
+    datos = cliente.get("/api/producto/11030").get_json()
+    assert datos["marca"] == "Olaplex"
+    assert datos["frases"]
