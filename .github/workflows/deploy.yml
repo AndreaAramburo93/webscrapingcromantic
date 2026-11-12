@@ -71,7 +71,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/productos_cromantic.csv data/calidad_datos.json
+          git add -A data
           git diff --cached --quiet || git commit -m "data: actualiza precios [skip ci]"
           git push || echo "Sin cambios para subir"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

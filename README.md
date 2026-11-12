@@ -123,6 +123,55 @@ git push origin v1.0.0
 Las pruebas usan `tests/fixtures/capilar_pagina1.html`, una página de ejemplo con la misma
 estructura JSON-LD del sitio. No dependen de internet, por eso no fallan si la tienda cambia o se cae.
 
+
+## Aplicación web (Evidencia 3)
+
+La versión 2.0.0 agrega una aplicación web con Flask, desplegada en Render como contenedor Docker.
+
+| Ruta | Qué devuelve |
+| --- | --- |
+| `/` | Indicadores, precio promedio por marca, catálogo con filtros y calidad de los datos |
+| `/api/productos?marca=&q=&orden=` | Productos en JSON (`orden`: `precio_desc`, `precio_asc`, `nombre`) |
+| `/api/resumen` | Estadísticas, tabla por marca y reporte de calidad en JSON |
+| `/api/descuentos` | Top 10 de descuentos entre las dos últimas extracciones en JSON |
+| `/health` | Estado del servicio, versión y commit desplegado |
+
+Ejecutarla en local:
+
+```bash
+flask --app cromantic_scraper.app run          # http://127.0.0.1:5000
+```
+
+### Validación y limpieza de datos
+
+`limpieza.py` descarta filas sin SKU, sin nombre, con precio vacío o menor o igual a cero, y SKU
+repetidos. Cada ejecución guarda el conteo en `data/calidad_datos.json`, que la app muestra.
+
+### Historial de precios y descuentos
+
+Cada extracción real (no el respaldo) agrega sus precios con la fecha del día a
+`data/historial_precios.csv`. `historial.py` compara las dos últimas fechas: el precio normal es el
+más alto y el de promoción el más bajo. Si el precio bajó, la promoción está **activa**; si subió,
+**terminó**. La app muestra el top 10 de descuentos y el top 5 de productos más caros.
+
+### Pipeline
+
+- **CI (`ci.yml`)**: tres trabajos en paralelo (flake8, pytest en 3 versiones de Python, construcción
+  y prueba de la imagen Docker). Cancela ejecuciones viejas de la misma rama.
+- **CD (`deploy.yml`)**: pruebas → scraping y limpieza → en paralelo, despliegue en Render y en
+  GitHub Pages. Termina con una prueba de humo sobre la URL de producción.
+
+### Configuración en GitHub
+
+| Tipo | Nombre | Valor |
+| --- | --- | --- |
+| Secreto | `RENDER_DEPLOY_HOOK_URL` | Deploy hook del servicio en Render (Settings del servicio) |
+| Variable | `APP_URL` | `https://<tu-servicio>.onrender.com` |
+| Variable | `SCRAPER_PAGINAS` | Opcional, por defecto 12 |
+
+El plan gratuito de Render apaga el servicio tras 15 minutos sin visitas; la primera visita después
+tarda cerca de un minuto en responder.
+
 ## Uso responsable
 
 El scraper espera 1,5 s entre páginas, se identifica con un User-Agent de navegador y solo lee

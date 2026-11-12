@@ -1,6 +1,6 @@
 # Integración continua: se ejecuta en cada push y en cada pull request.
-# Si el estilo (flake8) o alguna prueba (pytest) falla, el commit queda en rojo
-# y la regla de protección de main impide fusionar el pull request.
+# Los tres trabajos (estilo, pruebas y Docker) corren EN PARALELO para que el
+# resultado llegue antes. Si uno falla, el pull request no se puede fusionar.
 name: CI
 
 on:
@@ -9,10 +9,16 @@ on:
   pull_request:
     branches: [main]
 
-jobs:
+# Si llega un push nuevo a la misma rama, cancela la ejecución anterior
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-  #se agrega el job de estilo 
- estilo:
+permissions:
+  contents: read
+
+jobs:
+  estilo:
     name: Estilo PEP 8 (flake8)
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -25,8 +31,7 @@ jobs:
       - run: pip install flake8
       - run: flake8 src tests
 
-    #Se edita archivo de pruebas, de agrega el uso de docker 
- pruebas:
+  pruebas:
     name: Pruebas (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -38,7 +43,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          #trabajaremos con versionamiento en este caso, isntalando las dependencias necesarias 
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Instalar dependencias
@@ -48,8 +52,7 @@ jobs:
       - name: Pruebas unitarias con cobertura
         run: pytest --cov=cromantic_scraper --cov-report=term-missing --cov-fail-under=75
 
-    #se invoca el docker para contenedor 
- docker:
+  docker:
     name: Imagen Docker
     runs-on: ubuntu-latest
     timeout-minutes: 10
