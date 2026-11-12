@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from . import historial
 from .analysis import a_dataframe
 from .limpieza import limpiar
 from .report import construir_html
@@ -47,6 +48,7 @@ def main(argv=None):
                         default=int(os.environ.get("SCRAPER_PAGINAS", 12)))
     parser.add_argument("--csv", default="data/productos_cromantic.csv")
     parser.add_argument("--calidad", default="data/calidad_datos.json")
+    parser.add_argument("--historial", default="data/historial_precios.csv")
     parser.add_argument("--salida", default="site/index.html")
     args = parser.parse_args(argv)
 
@@ -81,6 +83,11 @@ def main(argv=None):
     })
     Path(args.calidad).write_text(json.dumps(reporte, indent=2), encoding="utf-8")
     log.info("Guardados %s productos en %s", len(df), ruta_csv)
+
+    if origen == "scraping":  # el respaldo no es una medición nueva
+        hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        historial.agregar(df, args.historial, hoy)
+        log.info("Historial actualizado en %s (%s)", args.historial, hoy)
 
     ruta_html = Path(args.salida)
     ruta_html.parent.mkdir(parents=True, exist_ok=True)
