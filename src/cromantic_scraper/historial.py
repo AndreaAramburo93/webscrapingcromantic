@@ -116,3 +116,54 @@ def top_descuentos(hist, n=10):
             "estado": f.estado,
         })
     return filas
+
+
+def comparativo(hist, df):
+    """Agrega al catálogo actual el precio de la extracción anterior.
+
+    Columnas nuevas: precio_anterior, precio_anterior_texto, variacion_pct,
+    diferencia_texto y tendencia ("sube", "baja", "igual" o "nuevo" si el
+    producto no estaba en la extracción anterior).
+    """
+    datos = df.copy()
+    datos["sku"] = datos["sku"].astype(str)
+    fs = fechas(hist) if hist is not None and len(hist) else []
+    if len(fs) >= 2:
+        previo = hist[hist["fecha"] == fs[-2]].drop_duplicates("sku")
+        previo = previo.assign(sku=previo["sku"].astype(str))
+        anteriores = previo.set_index("sku")["precio_cop"]
+        datos["precio_anterior"] = datos["sku"].map(anteriores)
+    else:
+        datos["precio_anterior"] = float("nan")
+
+    antes, ahora = datos["precio_anterior"], datos["precio_cop"]
+    datos["variacion_pct"] = ((ahora / antes - 1) * 100).round(1)
+    datos["tendencia"] = "igual"
+    datos.loc[ahora > antes, "tendencia"] = "sube"
+    datos.loc[ahora < antes, "tendencia"] = "baja"
+    datos.loc[antes.isna(), "tendencia"] = "nuevo"
+    datos["precio_anterior_texto"] = antes.map(
+        lambda v: formatear_cop(v) if pd.notna(v) else "—")
+    datos["diferencia_texto"] = (ahora - antes).map(
+        lambda v: ("+" if v > 0 else "−" if v < 0 else "") + formatear_cop(abs(v))
+        if pd.notna(v) else "—")
+    return datos
+
+
+def resumen_comparativo(comp, hist):
+    """Listas de productos que subieron y bajaron, ordenadas por magnitud."""
+    fs = fechas(hist) if hist is not None and len(hist) else []
+    columnas = ["sku", "marca", "nombre", "precio_anterior_texto", "precio_texto",
+                "variacion_pct", "diferencia_texto", "tendencia"]
+    subieron = comp[comp["tendencia"] == "sube"].sort_values(
+        "variacion_pct", ascending=False)
+    bajaron = comp[comp["tendencia"] == "baja"].sort_values("variacion_pct")
+    return {
+        "hay_comparacion": len(fs) >= 2,
+        "fecha_antes": fs[-2] if len(fs) >= 2 else None,
+        "fecha_ahora": fs[-1] if fs else None,
+        "subieron": subieron[columnas].to_dict("records"),
+        "bajaron": bajaron[columnas].to_dict("records"),
+        "iguales": int((comp["tendencia"] == "igual").sum()),
+        "nuevos": int((comp["tendencia"] == "nuevo").sum()),
+    }
