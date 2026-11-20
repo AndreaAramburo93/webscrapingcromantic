@@ -3,6 +3,7 @@
 {% block contenido %}
 {{ s.kpis(resumen) }}
 {% if destacado %}{{ s.perfil(destacado, true) }}{% endif %}
+{{ s.comparativo_seccion(comparativo, true) }}
 {{ s.descuentos_tabla(descuentos, cambios, true) }}
 {{ s.caros_tabla(caros, true) }}
 {{ s.marcas_barras(marcas, formatear_cop) }}
@@ -16,26 +17,24 @@
         <option value="{{ nombre }}" {% if nombre == marca %}selected{% endif %}>{{ nombre }}</option>
         {% endfor %}
       </select>
+      <select name="cambio" aria-label="Cambio de precio">
+        <option value="">Todos los cambios</option>
+        <option value="baja" {% if cambio == 'baja' %}selected{% endif %}>▼ Bajaron</option>
+        <option value="sube" {% if cambio == 'sube' %}selected{% endif %}>▲ Subieron</option>
+        <option value="igual" {% if cambio == 'igual' %}selected{% endif %}>= Sin cambio</option>
+        <option value="nuevo" {% if cambio == 'nuevo' %}selected{% endif %}>Nuevos</option>
+      </select>
       <select name="orden" aria-label="Orden">
         <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Mayor precio</option>
         <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Menor precio</option>
         <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Nombre A–Z</option>
+        <option value="subio_mas" {% if orden == 'subio_mas' %}selected{% endif %}>Más subió</option>
+        <option value="bajo_mas" {% if orden == 'bajo_mas' %}selected{% endif %}>Más bajó</option>
       </select>
       <button type="submit">Filtrar</button>
-      {% if marca or texto %}<a class="limpiar" href="/">Quitar filtros</a>{% endif %}
+      {% if marca or texto or cambio %}<a class="limpiar" href="/">Quitar filtros</a>{% endif %}
     </form>
-    <div class="tabla">
-    {% if productos %}
-      <table>
-        <tr><th>SKU</th><th>Marca</th><th>Producto</th><th style="text-align:right">Precio</th></tr>
-        {% for p in productos %}
-        <tr><td>{{ p.sku }}</td><td>{{ p.marca }}</td><td>{{ s.nombre_producto(p.sku, p.nombre, true) }}</td><td class="num">{{ p.precio_texto }}</td></tr>
-        {% endfor %}
-      </table>
-    {% else %}
-      <p class="vacio">Ningún producto coincide con el filtro.</p>
-    {% endif %}
-    </div>
+    {{ s.catalogo_tabla(productos, true) }}
   </section>
 
 {{ s.calidad_tabla(calidad) }}

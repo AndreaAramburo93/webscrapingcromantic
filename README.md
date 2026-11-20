@@ -20,7 +20,7 @@ webscrapingcromantic/
 │   ├── app.py          # aplicación web Flask desplegada en Render
 │   ├── templates/      # páginas HTML de la aplicación
 │   └── __main__.py     # punto de entrada: scraping → limpieza → CSV → historial → HTML
-├── tests/              # 51 pruebas unitarias (pytest) con datos de ejemplo, sin red
+├── tests/              # 55 pruebas unitarias (pytest) con datos de ejemplo, sin red
 ├── data/               # productos, historial de precios y reporte de calidad
 ├── Notebooks/          # notebooks de Colab de las evidencias 1 y 2
 ├── .github/workflows/
@@ -142,7 +142,7 @@ La versión 2.0.0 agrega una aplicación web con Flask, desplegada en Render com
 | Ruta | Qué devuelve |
 | --- | --- |
 | `/` | Indicadores, precio promedio por marca, catálogo con filtros y calidad de los datos |
-| `/api/productos?marca=&q=&orden=` | Productos en JSON (`orden`: `precio_desc`, `precio_asc`, `nombre`) |
+| `/api/productos?marca=&q=&orden=&cambio=` | Productos en JSON con precio anterior y tendencia (`orden`: `precio_desc`, `precio_asc`, `nombre`, `subio_mas`, `bajo_mas`; `cambio`: `sube`, `baja`, `igual`, `nuevo`) |
 | `/api/resumen` | Estadísticas, tabla por marca y reporte de calidad en JSON |
 | `/api/descuentos` | Top 10 de descuentos entre las dos últimas extracciones en JSON |
 | `/producto/<sku>` | Análisis descriptivo de un producto: catálogo, marca, tipo e historial de precio |
@@ -166,6 +166,13 @@ Cada extracción real (no el respaldo) agrega sus precios con la fecha del día 
 `data/historial_precios.csv`. `historial.py` compara las dos últimas fechas: el precio normal es el
 más alto y el de promoción el más bajo. Si el precio bajó, la promoción está **activa**; si subió,
 **terminó**. La app muestra el top 10 de descuentos y el top 5 de productos más caros.
+
+### Comparativo entre extracciones
+
+`historial.comparativo()` agrega a cada producto el precio de la extracción anterior, la variación
+en porcentaje y la tendencia (▲ subió, ▼ bajó, = sin cambio o nuevo). La app y el reporte muestran
+el resumen, la lista completa de productos que subieron y bajaron, y esas columnas en el catálogo,
+que además se puede filtrar y ordenar por cambio.
 
 ### Producto destacado y reporte automático
 

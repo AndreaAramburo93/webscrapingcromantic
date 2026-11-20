@@ -71,6 +71,16 @@
   .historia .barra { grid-template-columns: 110px 1fr 96px; }
   td a { color: var(--tinta); text-decoration-color: var(--linea); text-underline-offset: 3px; }
   td a:hover { color: var(--acento); }
+  .tend { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tend.sube { color: #b3261e; }
+  .tend.baja { color: #1d6b38; }
+  .tend.igual, .tend.nuevo { color: var(--suave); font-weight: 400; }
+  .resumen-cambios { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+  .resumen-cambios span { background: var(--fondo); border-radius: 99px; padding: 4px 12px;
+                          font-size: .85rem; }
+  .dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .dos-columnas h3 { font-size: .95rem; margin: 0 0 6px; }
+  @media (max-width: 860px) { .dos-columnas { grid-template-columns: 1fr; } }
   footer { color: var(--suave); font-size: .82rem; text-align: center; padding-bottom: 32px; }
   footer a { color: var(--acento); }
   @media (max-width: 560px) {

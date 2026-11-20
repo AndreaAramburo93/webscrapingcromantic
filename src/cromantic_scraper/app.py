@@ -2,7 +2,7 @@
 
 Rutas:
     /                 página con indicadores, filtros y catálogo
-    /api/productos    productos en JSON (filtros: marca, q, orden)
+    /api/productos    productos en JSON (filtros: marca, q, orden, cambio)
     /producto/<sku>   análisis descriptivo de un producto
     /api/resumen      estadísticas de precio y tabla por marca en JSON
     /api/descuentos   top 10 de descuentos en JSON
@@ -30,7 +30,10 @@ ORDENES = {
     "precio_desc": ("precio_cop", False),
     "precio_asc": ("precio_cop", True),
     "nombre": ("nombre", True),
+    "subio_mas": ("variacion_pct", False),
+    "bajo_mas": ("variacion_pct", True),
 }
+TENDENCIAS = {"sube", "baja", "igual", "nuevo"}
 
 
 def crear_app(ruta_datos=None):
@@ -68,27 +71,33 @@ def crear_app(ruta_datos=None):
         marca = request.args.get("marca", "").strip()
         texto = request.args.get("q", "").strip()
         orden = request.args.get("orden", "precio_desc")
+        cambio = request.args.get("cambio", "").strip()
+        if cambio in TENDENCIAS and "tendencia" in df.columns:
+            df = df[df["tendencia"] == cambio]
         if marca:
             df = df[df["marca"] == marca]
         if texto:
             df = df[df["nombre"].str.contains(texto, case=False, na=False,
                                               regex=False)]
         columna, ascendente = ORDENES.get(orden, ORDENES["precio_desc"])
-        return df.sort_values(columna, ascending=ascendente), marca, texto, orden
+        ordenado = df.sort_values(columna, ascending=ascendente)
+        return ordenado, marca, texto, orden, cambio
 
     @app.get("/")
     def inicio():
         df = cargar()
         if df is None or df.empty:
             return render_template("sin_datos.html"), 503
-        filtrado, marca, texto, orden = filtrar(df)
-        datos = contexto(df, cargar_historial(), calidad())
+        hist = cargar_historial()
+        filtrado, marca, texto, orden, cambio = filtrar(
+            historial.comparativo(hist, df))
+        datos = contexto(df, hist, calidad())
         return render_template(
             "index.html",
             productos=filtrado.to_dict("records"),
             total=len(df),
             lista_marcas=sorted(df["marca"].dropna().unique()),
-            marca=marca, texto=texto, orden=orden,
+            marca=marca, texto=texto, orden=orden, cambio=cambio,
             entorno=os.environ.get("ENTORNO", "local"),
             **datos,
         )
@@ -118,10 +127,12 @@ def crear_app(ruta_datos=None):
         df = cargar()
         if df is None:
             return jsonify(error="sin datos"), 503
-        filtrado, *_ = filtrar(df)
-        columnas = ["sku", "marca", "nombre", "precio_cop", "precio_texto"]
-        return jsonify(total=len(filtrado),
-                       productos=filtrado[columnas].to_dict("records"))
+        filtrado, *_ = filtrar(historial.comparativo(cargar_historial(), df))
+        columnas = ["sku", "marca", "nombre", "precio_cop", "precio_texto",
+                    "precio_anterior", "variacion_pct", "tendencia"]
+        registros = filtrado[columnas].astype(object).where(
+            filtrado[columnas].notna(), None).to_dict("records")
+        return jsonify(total=len(filtrado), productos=registros)
 
     @app.get("/api/resumen")
     def api_resumen():

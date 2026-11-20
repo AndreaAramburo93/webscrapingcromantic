@@ -109,3 +109,69 @@
   </section>
   {% endif %}
 {% endmacro %}
+
+{% macro tendencia(p) -%}
+  {%- if p.tendencia == "sube" -%}<span class="tend sube">▲ +{{ '%.0f' % p.variacion_pct }} %</span>
+  {%- elif p.tendencia == "baja" -%}<span class="tend baja">▼ −{{ '%.0f' % (p.variacion_pct | abs) }} %</span>
+  {%- elif p.tendencia == "igual" -%}<span class="tend igual">= 0 %</span>
+  {%- else -%}<span class="tend nuevo">Nuevo</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro lista_cambios(filas, enlaces) %}
+  <div class="tabla"><table>
+    <tr><th>Producto</th><th style="text-align:right">Antes</th><th style="text-align:right">Ahora</th>
+        <th style="text-align:right">Cambio</th></tr>
+    {% for p in filas %}
+    <tr><td>{{ nombre_producto(p.sku, p.nombre, enlaces) }}<br><small class="marca-txt">{{ p.marca }}</small></td>
+        <td class="num">{{ p.precio_anterior_texto }}</td><td class="num">{{ p.precio_texto }}</td>
+        <td class="num">{{ tendencia(p) }}</td></tr>
+    {% endfor %}
+  </table></div>
+{% endmacro %}
+
+{% macro comparativo_seccion(c, enlaces) %}
+  <section>
+    <h2>Comparativo entre extracciones</h2>
+    {% if c.hay_comparacion %}
+    <p class="nota">Precio de cada producto el {{ c.fecha_antes }} frente al {{ c.fecha_ahora }}.</p>
+    <div class="resumen-cambios">
+      <span><b class="tend baja">▼ {{ c.bajaron | length }}</b> bajaron</span>
+      <span><b class="tend sube">▲ {{ c.subieron | length }}</b> subieron</span>
+      <span><b>= {{ c.iguales }}</b> sin cambio</span>
+      <span><b>{{ c.nuevos }}</b> nuevos</span>
+    </div>
+    <div class="dos-columnas">
+      <div>
+        <h3>Bajaron de precio ({{ c.bajaron | length }})</h3>
+        {% if c.bajaron %}{{ lista_cambios(c.bajaron, enlaces) }}{% else %}<p class="vacio">Ningún producto bajó.</p>{% endif %}
+      </div>
+      <div>
+        <h3>Subieron de precio ({{ c.subieron | length }})</h3>
+        {% if c.subieron %}{{ lista_cambios(c.subieron, enlaces) }}{% else %}<p class="vacio">Ningún producto subió.</p>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <p class="vacio">Se necesitan al menos dos extracciones en fechas distintas para comparar precios.</p>
+    {% endif %}
+  </section>
+{% endmacro %}
+
+{% macro catalogo_tabla(productos, enlaces) %}
+  <div class="tabla">
+  {% if productos %}
+    <table>
+      <tr><th class="opcional">SKU</th><th class="opcional">Marca</th><th>Producto</th>
+          <th class="opcional" style="text-align:right">Anterior</th><th style="text-align:right">Actual</th>
+          <th style="text-align:right">Cambio</th></tr>
+      {% for p in productos %}
+      <tr><td class="opcional">{{ p.sku }}</td><td class="opcional">{{ p.marca }}</td>
+          <td>{{ nombre_producto(p.sku, p.nombre, enlaces) }}</td>
+          <td class="num opcional">{{ p.precio_anterior_texto }}</td><td class="num">{{ p.precio_texto }}</td>
+          <td class="num">{{ tendencia(p) }}</td></tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="vacio">Ningún producto coincide con el filtro.</p>
+  {% endif %}
+  </div>
+{% endmacro %}

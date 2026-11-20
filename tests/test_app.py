@@ -134,3 +134,19 @@ def test_api_producto(cliente):
     datos = cliente.get("/api/producto/11030").get_json()
     assert datos["marca"] == "Olaplex"
     assert datos["frases"]
+
+
+def test_comparativo_en_la_pagina(cliente):
+    html = cliente.get("/").get_data(as_text=True)
+    assert "Comparativo entre extracciones" in html
+    assert "▲ +150 %" in html      # tónico: 17.996 → 44.990
+    assert "= 0 %" in html         # Olaplex: 165.990 en ambas fechas
+
+
+def test_filtro_por_cambio(cliente):
+    datos = cliente.get("/api/productos?cambio=sube").get_json()
+    assert [p["sku"] for p in datos["productos"]] == ["10996"]
+    assert datos["productos"][0]["tendencia"] == "sube"
+    nuevos = cliente.get("/api/productos?cambio=nuevo").get_json()
+    assert nuevos["total"] == 2
+    assert nuevos["productos"][0]["precio_anterior"] is None

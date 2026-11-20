@@ -32,6 +32,7 @@ def contexto(df, hist=None, calidad=None):
     # el más caro del catálogo.
     sku = descuentos[0]["sku"] if descuentos else (caros[0]["sku"] if caros else None)
     destacado = perfil_producto(df, hist, sku) if sku else None
+    comp = historial.comparativo(hist, df)
 
     return {
         "resumen": {k: v if k == "productos" else formatear_cop(v)
@@ -41,6 +42,7 @@ def contexto(df, hist=None, calidad=None):
         "cambios": historial.resumen_cambios(hist),
         "caros": caros,
         "destacado": destacado,
+        "comparativo": historial.resumen_comparativo(comp, hist),
         "calidad": calidad or {},
         "formatear_cop": formatear_cop,
         "version": __version__,
@@ -51,6 +53,7 @@ def construir_html(df, hist=None, calidad=None, entorno="GitHub Pages"):
     """Devuelve el HTML del reporte estático con todas las métricas."""
     datos = contexto(df, hist, calidad)
     datos["entorno"] = entorno
-    ordenado = df.sort_values("precio_cop", ascending=False)
+    comp = historial.comparativo(hist, df)
+    ordenado = comp.sort_values("precio_cop", ascending=False)
     datos["productos"] = ordenado.to_dict("records")
     return _entorno_plantillas.get_template("reporte.html").render(**datos)
