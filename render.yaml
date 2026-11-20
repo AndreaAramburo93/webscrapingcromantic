@@ -1,0 +1,18 @@
+# Infraestructura como código: Render crea el servicio a partir de este archivo
+# (New > Blueprint). El despliegue lo dispara GitHub Actions con el deploy hook,
+# por eso autoDeploy está apagado.
+services:
+  - type: web
+    name: cromantic-precios
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: ENTORNO
+        value: produccion
+      - key: DATA_PATH
+        value: /app/data/productos_cromantic.csv

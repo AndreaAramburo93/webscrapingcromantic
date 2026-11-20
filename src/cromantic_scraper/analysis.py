@@ -41,4 +41,4 @@ def por_marca(df):
 
 def mas_caros(df, n=5):
     """Los n productos de mayor precio."""
-    return df.nlargest(n, "precio_cop")[["marca", "nombre", "precio_texto"]]
+    return df.nlargest(n, "precio_cop")[["sku", "marca", "nombre", "precio_texto"]]

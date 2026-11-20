@@ -56,3 +56,18 @@ def test_lee_csv_del_notebook_original(tmp_path):
     df = cargar_csv(ruta)
     assert df.loc[0, "marca"] == "Olaplex"
     assert df.loc[0, "precio_cop"] == 165990.0
+
+
+def test_reporte_estatico_incluye_tops_y_destacado():
+    from cromantic_scraper.historial import COLUMNAS
+    import pandas as pd
+    df = analysis.a_dataframe(productos_ejemplo())
+    hist = pd.DataFrame([
+        ("2026-11-06", "10996", "Anyeluz", "Tónico Romero Anyeluz 110ml", 17996),
+        ("2026-11-09", "10996", "Anyeluz", "Tónico Romero Anyeluz 110ml", 44990),
+    ], columns=COLUMNAS)
+    pagina = report.construir_html(df, hist)
+    assert "Top 5 productos más caros" in pagina
+    assert "Top 10 productos con más descuento" in pagina
+    assert "Producto destacado" in pagina
+    assert "/producto/" not in pagina   # el reporte estático no tiene esas rutas

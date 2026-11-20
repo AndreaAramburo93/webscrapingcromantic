@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% import "_secciones.html" as s with context %}
+{% block titulo %}{{ p.nombre }} | Precios capilares Cromantic{% endblock %}
+{% block contenido %}
+<p><a class="volver" href="/">← Volver al tablero</a></p>
+{{ s.perfil(p, true, "Análisis del producto") }}
+{% endblock %}
